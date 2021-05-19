@@ -1,6 +1,6 @@
 import logo from './logo.svg';
 import './App.css';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState} from 'react';
 
 
 const content =[
@@ -44,6 +44,71 @@ const useInput = (initialValue, validator)=>{
   return {value, onChange};
 }
 
+const useTitle=(initialTitle)=>{
+  const [title, setTitle] = useState(initialTitle);
+  const updateTitle=()=>{
+    const htmlTitle = document.querySelector("title");
+    htmlTitle.innerText=title;
+  };
+  useEffect(updateTitle, [title]);
+  return setTitle;
+}
+
+const useClick = (onClick)=>{
+  const element = useRef();
+  useEffect(()=>{
+    if(element.current){
+      element.current.addEventListener("click", onClick);
+    }
+    return ()=>{
+      if(element.current){
+        element.current.removeEventListener("click", onClick);
+      }
+    };
+  },[]);
+  return element;
+};
+
+const useConfirm = (message="", onConfirm, onCancel) =>{
+  if(!onConfirm && typeof onConfirm !== "function"){
+    return;
+  }
+  if(!onCancel && typeof onCancel!== "function"){
+    return;
+  }
+  const confirmAction = ()=>{
+    if(window.confirm(message)){
+      onConfirm();
+    }else{
+      onCancel();    
+    }
+  }
+  return confirmAction;
+};
+
+const usePreventLeave =() =>{
+    const lietener = event =>{
+      event.preventDefault();
+      event.returnValue="";
+    }
+    const enablePrevent = () =>  window.addEventListener("beforeunload", lietener);
+    const disablePrevent = () =>window.removeEventListener("beforeunload", lietener);
+    return {enablePrevent, disablePrevent};
+}
+
+const useBeforeLeave= onBefore=>{
+  const handle = (event) =>{
+    const {clientY} = event;
+    if(clientY <= 0){
+        onBefore();
+    }
+  }
+  useEffect(()=>{
+    document.addEventListener("mouseleave", handle);
+    return ()=> document.removeEventListener("mouseleave", handle);
+  }, []);
+};
+
 const App=() =>{
   // const [item, setItem] = useState(1);
   // const incrementItem = () => setItem(item+1);
@@ -51,18 +116,38 @@ const App=() =>{
   const maxLen = value => value.length <10;
   const name = useInput("Mr.", maxLen);
   const {currentItem, changeItem} =useTabs(0, content);
-  return (
+  const [number, setNumber]= useState(0);
+  const [aNumber, setAnumber]= useState(0);  
+  const titleUpdater = useTitle("Loading ...");
+  setTimeout(()=>titleUpdater("Home"), 5000);
+  const sayHello = () => console.log("hello"); 
+  useEffect(sayHello, [number]); 
+  const input = useRef();
+  const title = useClick(sayHello);
+  const deleteTest = () =>console.log("Delete");
+  const abort = ()=> console.log("abort");
+  const confirmDelete = useConfirm("Are you Sure", deleteTest, abort);
+  const {enablePrevent, disablePrevent} = usePreventLeave();
+  const leave = () => console.log("leave");
+  useBeforeLeave(leave);
+  return ( 
     <div className="App">
       <header className="App-header">
         <img src={logo} className="App-logo" alt="logo" />
-        <p>Hello</p>
-        <input placeholder="Name" {...name} />
+        <h1 ref={title}>Hello</h1>
+        <input ref={input} placeholder="Name" {...name} />
+        <button onClick={()=>setNumber(number+1)}>{number}</button>
+        <button onClick={()=>setAnumber(aNumber+1)}>{aNumber}</button>
+        <button onClick={confirmDelete}>Delete Confirm</button>
+        <button onClick={enablePrevent}>Protect</button>
+        <button onClick={ disablePrevent}>Unprotect</button>
         {content.map((section,index) => <button onClick={()=>changeItem(index)} key={section.id}>{section.tab}</button>)}
         {currentItem.content}
+
         {/* <p>Hello {item} </p>
         <button onClick={incrementItem}>Increment</button>
         <button onClick={decrementItem}>Decrement</button> */}
-        <a
+        <a 
           className="App-link"
           href="https://reactjs.org"
           target="_blank"
