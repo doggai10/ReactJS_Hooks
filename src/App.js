@@ -1,7 +1,7 @@
 import logo from './logo.svg';
 import './App.css';
 import React, { useEffect, useRef, useState} from 'react';
-
+import useAxios from  "./useAxios";
 
 const content =[
   {
@@ -109,6 +109,98 @@ const useBeforeLeave= onBefore=>{
   }, []);
 };
 
+const useFadeIn = (duration =1, delay=0) =>{
+  const element = useRef();
+  useEffect(()=>{
+    if(element.current){
+      const { current} = element;
+      current.style.transition = `opacity ${duration}s ease-in-out ${delay}s`;
+      current.style.opacity=1;
+    }
+  },[]);
+  return {ref:element, style:{opacity:0}};
+
+}
+
+const useNetwork = onChange =>{
+  const [status, setStatus] = useState(navigator.onLine);
+  const handleChange = ()=>{
+    if(typeof onChange === "function"){
+      onChange(navigator.onLine);
+    }
+    setStatus(navigator.onLine);
+  };
+
+  const removeListener =()=>{
+    window.removeEventListener("online", handleChange);
+    window.removeEventListener("offline",handleChange);
+  }
+  useEffect(()=>{
+    window.addEventListener("online", handleChange);
+    window.addEventListener("offline",handleChange);
+    return removeListener;
+  },[]);
+  return status;
+
+}
+
+const useScroll =()=>{
+  const [state, setState]= useState({
+    x:0,
+    y:0
+  });
+
+  const onScroll = (event)=>{
+    console.log(event);
+  }
+
+  useEffect(()=>{
+    window.addEventListener("scroll", onScroll);
+    return ()=>window.removeEventListener("scroll", onScroll);
+  }, [])
+  return state;
+}
+
+const useFullScreen = (onFulls)=>{
+  const element = useRef();
+  const triggerFull = ()=>{
+    if(element.current){
+      element.current.requestFullscreen();
+      if(onFulls && typeof onFulls ==="function"){
+        onFulls(true);
+      }
+    }
+  };
+  const exitFull = ()=>{
+    document.exitFullscreen();
+    if(onFulls && typeof onFulls ==="function"){
+      onFulls(false);
+    }
+  }
+  return {element, triggerFull,exitFull};
+}
+
+const useNotification = (title, options)=>{
+    if(!("Notification " in window)){
+      return;
+    }
+    const fireNotif =()=>{
+      if(Notification.permission !== "granted"){
+        Notification.requestPermission().then(permission =>{
+          if(permission === "granted"){
+            new Notification(title,options);
+          }else{
+            return;
+          }
+        })
+      }else{
+        new Notification(title,options);
+      }
+    }
+    return fireNotif;
+
+};
+
 const App=() =>{
   // const [item, setItem] = useState(1);
   // const incrementItem = () => setItem(item+1);
@@ -130,11 +222,26 @@ const App=() =>{
   const {enablePrevent, disablePrevent} = usePreventLeave();
   const leave = () => console.log("leave");
   useBeforeLeave(leave);
+  const el = useFadeIn(3,3);
+  const handleNetowrkChange = online =>{
+    console.log(online);
+  }
+  const onLine = useNetwork(handleNetowrkChange);
+  const {y} = useScroll();
+  const onFulls =(isFull) =>{
+    console.log(isFull? "Full": "Small");
+  }
+  const {element, triggerFull,exitFull} = useFullScreen(onFulls);
+  const triggerNotif = useNotification("Can you see this notification?");
+  const {loading,data,error,refetch} = useAxios({url:"https://yts.mx/api/v2/list_movies.json"});
+  console.log(loading,data,error, refetch);
   return ( 
-    <div className="App">
+    <div className="App" >
       <header className="App-header">
         <img src={logo} className="App-logo" alt="logo" />
-        <h1 ref={title}>Hello</h1>
+        <h1 ref={title} style={{ color: y>100 ? "red":"blue"}}>Hello</h1>
+        <h2 {...el}>Hooks</h2>
+        <h3>{onLine? "online":"offline"}</h3>
         <input ref={input} placeholder="Name" {...name} />
         <button onClick={()=>setNumber(number+1)}>{number}</button>
         <button onClick={()=>setAnumber(aNumber+1)}>{aNumber}</button>
@@ -143,10 +250,11 @@ const App=() =>{
         <button onClick={ disablePrevent}>Unprotect</button>
         {content.map((section,index) => <button onClick={()=>changeItem(index)} key={section.id}>{section.tab}</button>)}
         {currentItem.content}
-
-        {/* <p>Hello {item} </p>
+        {/* 
+        <p>Hello {item} </p>
         <button onClick={incrementItem}>Increment</button>
-        <button onClick={decrementItem}>Decrement</button> */}
+        <button onClick={decrementItem}>Decrement</button> 
+        */}
         <a 
           className="App-link"
           href="https://reactjs.org"
@@ -155,6 +263,13 @@ const App=() =>{
         >
           Learn React
         </a>
+        <div  ref={element}>
+        <img src="https://blog.kakaocdn.net/dn/p4J3g/btqwGiDHbAi/C3fRMHa1YPUb3tVlKG8Ouk/img.png"/>
+        <button onClick={triggerFull}>Make full screen</button>
+        <button onClick={exitFull}>Exit full screen</button>
+        </div>
+        <button onClick={triggerNotif}>Trigger Check</button>
+        <button onClick ={refetch}>Reftech</button>
       </header>
     </div>
   );
